@@ -44,29 +44,5 @@ stages:
       inputs:
         artifactName: 'drop'
         targetPath: '$(Build.ArtifactStagingDirectory)'
-    - task: PowerShell@2
-      displayName: 'Send new version to main'
-      inputs:
-        targetType: 'inline'
-        script: |
-          # Change the directory to local repository
-          Set-Location -Path "$(Build.SourcesDirectory)"
-          Write-Host "Set the Git credentials"
-          git config --global user.email "rsd.nave@gmail.com"
-          git config --global user.name "DESKTOP-I58DGNN"
 
-          # Fetch the latest changes from the remote repository
-          git fetch --all
-
-          # Switch to the main branch
-          git checkout main --quiet
-
-          # Merge the local branch with the main branch, resolving conflicts by taking the incoming changes
-          git merge --allow-unrelated-histories -X theirs DevOps/test_$(Build.BuildNumber) -m "[skip ci] Pipeline Modification: AssemblyVersion = $NewVersion" --quiet
-
-          # Delete the local branch
-          git branch -d DevOps/test_$(Build.BuildNumber)
-
-          # Push the local main branch to the server repository
-          git push origin main --quiet
 
