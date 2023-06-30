@@ -1,0 +1,72 @@
+trigger:
+  branches:
+    include:
+    - main
+stages:
+- stage: __default
+  jobs:
+  - job: Job
+    pool:
+      name: my agent pool
+      vmImage: 'windows-latest'
+    steps:
+    - task: UseDotNet@2
+      inputs:
+        packageType: 'sdk'
+        version: '6.x'
+    - task: assembly-changer@1
+      inputs:
+        AssemblyDescription: Student Task
+        AssemblyCompany: Nave Maor
+        AssemblyProduct: Sort App
+    - task: DotNetCoreCLI@2
+      inputs:
+        command: 'build'
+        projects: 'naveProjectNew/naveProjectNew/naveProjectNew.csproj'
+      displayName: 'Build Solution'
+    - task: DotNetCoreCLI@2
+      inputs:
+        command: 'publish'
+        publishWebProjects: false
+        projects: 'naveProjectNew/naveProjectNew/naveProjectNew.csproj'
+        zipAfterPublish: false
+        modifyOutputPath: false
+      displayName: 'Publish Artifacts'
+    - task: CopyFiles@2
+      displayName: 'Copy Files to: $(build.artifactstagingdirectory)'
+      inputs:
+        SourceFolder: '$(system.defaultworkingdirectory)'
+        Contents: '**\bin\**'
+        TargetFolder: '$(build.artifactstagingdirectory)'
+      condition: succeededOrFailed()
+    - task: PublishPipelineArtifact@0
+      displayName: 'Publish pipeline artifact'
+      inputs:
+        artifactName: 'drop'
+        targetPath: '$(Build.ArtifactStagingDirectory)'
+    - task: PowerShell@2
+      displayName: 'Send new version to main'
+      inputs:
+        targetType: 'inline'
+        script: |
+          # Change the directory to local repository
+          Set-Location -Path "$(Build.SourcesDirectory)"
+          Write-Host "Set the Git credentials"
+          git config --global user.email "rsd.nave@gmail.com"
+          git config --global user.name "DESKTOP-I58DGNN"
+
+          # Fetch the latest changes from the remote repository
+          git fetch --all
+
+          # Switch to the main branch
+          git checkout main --quiet
+
+          # Merge the local branch with the main branch, resolving conflicts by taking the incoming changes
+          git merge --allow-unrelated-histories -X theirs DevOps/test_$(Build.BuildNumber) -m "[skip ci] Pipeline Modification: AssemblyVersion = $NewVersion" --quiet
+
+          # Delete the local branch
+          git branch -d DevOps/test_$(Build.BuildNumber)
+
+          # Push the local main branch to the server repository
+          git push origin main --quiet
+
